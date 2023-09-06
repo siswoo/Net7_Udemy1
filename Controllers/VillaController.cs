@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using Udemy1_API.Datos;
+using Udemy1_API.Modelos;
 using Udemy1_API.Modelos.Dto;
 
 namespace Udemy1_API.Controllers
@@ -11,10 +12,13 @@ namespace Udemy1_API.Controllers
     [ApiController]
     public class VillaController : ControllerBase
     {
+        private readonly AppDbContext _db;
+
         private readonly ILogger<VillaController> _logger;
-        public VillaController(ILogger<VillaController> logger)
+        public VillaController(ILogger<VillaController> logger, AppDbContext db)
         {
             _logger = logger;
+            _db = db;
         }
 
         [HttpGet]
@@ -24,7 +28,8 @@ namespace Udemy1_API.Controllers
         public ActionResult<IEnumerable<VillaDto>> GetAllVillas()
         {
             _logger.LogInformation("Obtener las Villas");
-            return Ok(VillaStore.villaList);
+            //return Ok(VillaStore.villaList);
+            return Ok(_db.Villas.ToList());
         }
 
         [HttpGet("id:int", Name = "GetIdVilla")]
@@ -39,7 +44,8 @@ namespace Udemy1_API.Controllers
                 return BadRequest();
             }
 
-            var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+            //var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
+            var villa = _db.Villas.FirstOrDefault(x => x.Id == id);
 
             if (villa == null)
             {
@@ -61,7 +67,9 @@ namespace Udemy1_API.Controllers
                 return BadRequest(ModelState);
             }
 
-            if(VillaStore.villaList.FirstOrDefault(v=>v.Nombre.ToLower() == villaDto.Nombre.ToLower()) != null)
+            var villa = _db.Villas.FirstOrDefault(x => x.Nombre.ToLower() == villaDto.Nombre.ToLower());
+
+            if(villa == null)
             {
                 ModelState.AddModelError("NombreExiste","La Villa con ese Nombre ya existe!");
                 return BadRequest(ModelState);
@@ -77,8 +85,23 @@ namespace Udemy1_API.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
-            villaDto.Id = VillaStore.villaList.OrderByDescending(v => v.Id).FirstOrDefault().Id + 1;
-            VillaStore.villaList.Add(villaDto);
+            //villaDto.Id = VillaStore.villaList.OrderByDescending(v => v.Id).FirstOrDefault().Id + 1;
+            //VillaStore.villaList.Add(villaDto);
+
+            Villa modelo = new()
+            {
+                Id = villaDto.Id,
+                Nombre = villaDto.Nombre,
+                Detalle = villaDto.Detalle,
+                ImagenUrl = villaDto.ImagenUrl,
+                Ocupantes = villaDto.Ocupantes,
+                Tarifa = villaDto.Tarifa,
+                MetrosCuadrados = villaDto.MetrosCuadrados,
+                Amenidad = villaDto.Amenidad
+            };
+            _db.Villas.Add(modelo);
+            _db.SaveChanges();
+
             return CreatedAtRoute("GetIdVilla", new { id = villaDto.Id }, villaDto);
         }
 
@@ -93,14 +116,17 @@ namespace Udemy1_API.Controllers
                 return BadRequest();
             }
 
-            var villa = VillaStore.villaList.FirstOrDefault(v=>v.Id == id);
+            //var villa = VillaStore.villaList.FirstOrDefault(v=>v.Id == id);
+            var villa = _db.Villas.FirstOrDefault(x=>x.Id == id);
 
             if (villa == null)
             {
                 return NotFound();
             }
 
-            VillaStore.villaList.Remove(villa);
+            //VillaStore.villaList.Remove(villa);
+            _db.Villas.Remove(villa);
+            _db.SaveChanges();
 
             return NoContent();
         }
@@ -116,7 +142,6 @@ namespace Udemy1_API.Controllers
             }
 
             var villa = VillaStore.villaList.FirstOrDefault(v => v.Id == id);
-
             villa.Nombre = villaDto.Nombre;
             villa.Ocupantes = villaDto.Ocupantes;
             villa.MetrosCuadrados = villaDto.MetrosCuadrados;
